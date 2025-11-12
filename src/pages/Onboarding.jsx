@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
 
 const STEPS = ['welcome', 'github', 'model', 'demo'];
 
@@ -21,12 +20,31 @@ export default function Onboarding() {
     await completeOnboarding();
   };
 
+  // TODO: Replace with MongoDB implementation
+  // - Update user document in MongoDB users collection
+  // - Use MongoDB query: db.users.updateOne({ _id: ObjectId(user.id) }, { $set: { onboarding_completed: true } })
+  // - Update userProfile in context after successful update
   const completeOnboarding = async () => {
     if (user) {
-      await supabase
-        .from('users')
-        .update({ onboarding_completed: true })
-        .eq('id', user.id);
+      // Mock implementation - replace with MongoDB
+      // const response = await fetch(`/api/users/${user.id}`, {
+      //   method: 'PATCH',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ onboarding_completed: true })
+      // });
+      // const data = await response.json();
+      
+      // For now, update local storage
+      const storedProfile = localStorage.getItem('arceus_userProfile');
+      if (storedProfile) {
+        try {
+          const profile = JSON.parse(storedProfile);
+          profile.onboarding_completed = true;
+          localStorage.setItem('arceus_userProfile', JSON.stringify(profile));
+        } catch (err) {
+          console.error('Error updating profile:', err);
+        }
+      }
     }
     navigate('/');
   };

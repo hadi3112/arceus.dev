@@ -1,52 +1,86 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
-import { supabase } from '../../lib/supabase';
 
 export default function Sidebar() {
   const { user } = useAuth();
-  const { sidebarCollapsed, toggleSidebar, setCurrentSession } = useApp();
+  const { sidebarCollapsed, toggleSidebar, currentSession, setCurrentSession } = useApp();
   const [chatSessions, setChatSessions] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // TODO: Replace with MongoDB implementation
+  // - Fetch chat sessions from MongoDB chat_sessions collection
+  // - Use MongoDB query: db.chat_sessions.find({ user_id: user.id }).sort({ updated_at: -1 }).limit(20)
+  // - Store sessions in state
   useEffect(() => {
     if (user) {
       fetchChatSessions();
     }
   }, [user]);
 
+  // Refresh sessions when currentSession changes (e.g., after sending a message)
+  useEffect(() => {
+    if (user && currentSession) {
+      fetchChatSessions();
+    }
+  }, [currentSession?.updated_at]);
+
   const fetchChatSessions = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('chat_sessions')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('updated_at', { ascending: false })
-      .limit(20);
-
-    if (error) {
-      console.error('Error fetching chat sessions:', error);
-    } else {
-      setChatSessions(data || []);
+    
+    // Mock implementation - replace with MongoDB
+    // const response = await fetch(`/api/chat-sessions?userId=${user.id}`);
+    // const data = await response.json();
+    // setChatSessions(data || []);
+    
+    // For now, load from localStorage
+    try {
+      const storedSessions = localStorage.getItem(`arceus_chatSessions_${user.id}`);
+      if (storedSessions) {
+        const sessions = JSON.parse(storedSessions);
+        setChatSessions(sessions);
+      } else {
+        setChatSessions([]);
+      }
+    } catch (err) {
+      console.error('Error loading chat sessions:', err);
+      setChatSessions([]);
     }
+    
     setLoading(false);
   };
 
+  // TODO: Replace with MongoDB implementation
+  // - Create new chat session in MongoDB chat_sessions collection
+  // - Use MongoDB insert: db.chat_sessions.insertOne({ user_id: user.id, title: 'New Chat', created_at: new Date(), updated_at: new Date() })
+  // - Return created session and add to state
   const createNewSession = async () => {
-    const { data, error } = await supabase
-      .from('chat_sessions')
-      .insert({
-        user_id: user.id,
-        title: 'New Chat',
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error creating session:', error);
-    } else {
-      setChatSessions([data, ...chatSessions]);
-      setCurrentSession(data);
+    // Mock implementation - replace with MongoDB
+    // const response = await fetch('/api/chat-sessions', {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({ user_id: user.id, title: 'New Chat' })
+    // });
+    // const data = await response.json();
+    
+    // For now, create a mock session
+    const newSession = {
+      id: `session_${Date.now()}`,
+      user_id: user.id,
+      title: 'New Chat',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    
+    const updatedSessions = [newSession, ...chatSessions];
+    setChatSessions(updatedSessions);
+    setCurrentSession(newSession);
+    
+    // Save to localStorage
+    try {
+      localStorage.setItem(`arceus_chatSessions_${user.id}`, JSON.stringify(updatedSessions));
+    } catch (err) {
+      console.error('Error saving chat sessions:', err);
     }
   };
 
@@ -109,7 +143,11 @@ export default function Sidebar() {
                 <button
                   key={session.id}
                   onClick={() => setCurrentSession(session)}
-                  className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:text-white-accent hover:bg-jet-black rounded-lg transition-all group"
+                  className={`w-full px-3 py-2 text-left text-sm rounded-lg transition-all group ${
+                    currentSession?.id === session.id
+                      ? 'bg-jet-black text-white-accent border border-arceus-orange'
+                      : 'text-gray-300 hover:text-white-accent hover:bg-jet-black'
+                  }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="truncate">{session.title}</span>

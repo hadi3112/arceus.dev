@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
-import { supabase } from '../../lib/supabase';
 import MessageBubble from './MessageBubble';
 
 export default function ChatInterface() {
   const { user } = useAuth();
-  const { currentSession, selectedModel } = useApp();
+  const { currentSession, selectedModel, setCurrentSession } = useApp();
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -28,73 +27,105 @@ export default function ChatInterface() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // TODO: Replace with MongoDB implementation
+  // - Fetch messages from MongoDB chat_messages collection
+  // - Use MongoDB query: db.chat_messages.find({ session_id: currentSession.id }).sort({ created_at: 1 })
+  // - Store messages in state
   const fetchMessages = async () => {
-    const { data, error } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('session_id', currentSession.id)
-      .order('created_at', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching messages:', error);
-    } else {
-      setMessages(data || []);
+    // Mock implementation - replace with MongoDB
+    // const response = await fetch(`/api/chat-messages?sessionId=${currentSession.id}`);
+    // const data = await response.json();
+    // setMessages(data || []);
+    
+    // For now, load from localStorage
+    try {
+      const storedMessages = localStorage.getItem(`arceus_messages_${currentSession.id}`);
+      if (storedMessages) {
+        const msgs = JSON.parse(storedMessages);
+        setMessages(msgs);
+      } else {
+        setMessages([]);
+      }
+    } catch (err) {
+      console.error('Error loading messages:', err);
+      setMessages([]);
     }
   };
 
+  // TODO: Replace with MongoDB implementation
+  // - Save user message to MongoDB chat_messages collection
+  // - Use MongoDB insert: db.chat_messages.insertOne({ session_id, role: 'user', content, created_at: new Date() })
+  // - Call AI API (OpenRouter) to get response
+  // - Save AI response to MongoDB chat_messages collection
+  // - Update chat_sessions.updated_at in MongoDB
   const handleSendMessage = async (e) => {
     e.preventDefault();
 
     if (!inputValue.trim() || !currentSession) return;
 
     const userMessage = {
+      id: `msg_${Date.now()}`,
       session_id: currentSession.id,
       role: 'user',
       content: inputValue,
+      created_at: new Date().toISOString(),
     };
 
     setInputValue('');
     setIsLoading(true);
 
-    const { data: savedUserMessage, error: userError } = await supabase
-      .from('chat_messages')
-      .insert(userMessage)
-      .select()
-      .single();
+    // Add user message immediately
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
+    
+    // Save to localStorage
+    try {
+      localStorage.setItem(`arceus_messages_${currentSession.id}`, JSON.stringify(updatedMessages));
+    } catch (err) {
+      console.error('Error saving messages:', err);
+    }
 
-    if (userError) {
-      console.error('Error saving user message:', error);
+    // Simulate AI response delay
+    setTimeout(() => {
+      const aiResponse = {
+        id: `msg_${Date.now() + 1}`,
+        session_id: currentSession.id,
+        role: 'assistant',
+        content: `This is a simulated response from ${selectedModel}. In a production environment, this would call the OpenRouter API to generate a real response based on your prompt.`,
+        model_used: selectedModel,
+        created_at: new Date().toISOString(),
+      };
+
+      const finalMessages = [...updatedMessages, aiResponse];
+      setMessages(finalMessages);
+      
+      // Save to localStorage
+      try {
+        localStorage.setItem(`arceus_messages_${currentSession.id}`, JSON.stringify(finalMessages));
+        
+        // Update session updated_at in localStorage
+        const storedSessions = localStorage.getItem(`arceus_chatSessions_${user.id}`);
+        if (storedSessions) {
+          const sessions = JSON.parse(storedSessions);
+          const updatedSessions = sessions.map(s => 
+            s.id === currentSession.id 
+              ? { ...s, updated_at: new Date().toISOString() }
+              : s
+          );
+          localStorage.setItem(`arceus_chatSessions_${user.id}`, JSON.stringify(updatedSessions));
+          
+          // Update current session in context
+          const updatedSession = updatedSessions.find(s => s.id === currentSession.id);
+          if (updatedSession) {
+            setCurrentSession(updatedSession);
+          }
+        }
+      } catch (err) {
+        console.error('Error saving AI message:', err);
+      }
+      
       setIsLoading(false);
-      return;
-    }
-
-    setMessages([...messages, savedUserMessage]);
-
-    const aiResponse = {
-      session_id: currentSession.id,
-      role: 'assistant',
-      content: `This is a simulated response from ${selectedModel}. In a production environment, this would call the OpenRouter API to generate a real response based on your prompt.`,
-      model_used: selectedModel,
-    };
-
-    const { data: savedAiMessage, error: aiError } = await supabase
-      .from('chat_messages')
-      .insert(aiResponse)
-      .select()
-      .single();
-
-    if (aiError) {
-      console.error('Error saving AI message:', aiError);
-    } else {
-      setMessages((prev) => [...prev, savedAiMessage]);
-    }
-
-    await supabase
-      .from('chat_sessions')
-      .update({ updated_at: new Date().toISOString() })
-      .eq('id', currentSession.id);
-
-    setIsLoading(false);
+    }, 1000); // Simulate 1 second delay for AI response
   };
 
   if (!currentSession) {

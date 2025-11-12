@@ -1,11 +1,12 @@
+import './src/index.css';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { AppProvider } from './context/AppContext';
-import SignIn from './pages/Auth/SignIn';
-import SignUp from './pages/Auth/SignUp';
-import Onboarding from './pages/Onboarding';
-import Dashboard from './pages/Dashboard';
-import CodeReview from './pages/CodeReview';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { AppProvider } from './src/context/AppContext';
+import SignIn from './src/pages/Auth/SignIn';
+import SignUp from './src/pages/Auth/SignUp';
+import Onboarding from './src/pages/Onboarding';
+import Dashboard from './src/pages/Dashboard';
+import CodeReview from './src/pages/CodeReview';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
